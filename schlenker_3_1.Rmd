@@ -1,0 +1,145 @@
+---
+title: "Exercise 3.1.1"
+author: "Christine Schlenker"
+date: "April 20, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 3.1.1: Basic Data Manipulation
+
+<!-- Note: I'm also using this opportunity to practice making an R markdown file. -->
+
+In this exercise, you'll work with a toy data set showing product purchases from an electronics store. While the data set is small and simple, it still illustrates many of the challenges you have to address in real-world data wrangling! The data set and exercise are inspired by [this blog post](http://d3-media.blogspot.nl/2013/11/how-to-refine-your-data.html).
+
+### Getting Started
+
+The data is in an Excel file here called  *[refine.xlsx](https://drive.google.com/file/d/0B9vKjeWdQHa5OE5UQ1k4TWJlelU/view)*. Right away, you'll notice that the data set has a few issues:  
+* There are four brands: Philips, Akzo, Van Houten and Unilever. However, there are many different spellings and capitalizations of those names!
+* The product code and number are combined in one column, separated by a hyphen.  
+
+### Exercise
+
+Using R, clean this data set to make it easier to visualize and analyze. Specifically, these are the tasks you need to do:
+
+(@) **Load the data in RStudio**  
+Save the data set as a CSV file called *refine_clean.csv* and load it in RStudio into a data frame.
+
+
+```{r loading_packages}
+# First, load the needed packages: tidyr, dplyr. Will need to install both packages prior to running.
+library("tidyr")
+library("dplyr")
+
+```
+
+
+
+```{r loading_data}
+# Load file from saved location-
+# Note: Manually saved excel file as csv prior to starting
+refine_clean <- read.csv("refine_original.csv")
+refine_clean <- as.data.frame(refine_clean)
+```
+
+
+(@) **Clean up brand names**  
+Clean up the 'company' column, so all of the misspellings of the brand names are standardized. For example, you can transform the values in the column to be: *philips, akzo, van houten* and *unilever* (all lowercase).
+
+
+
+```{r clean_company}
+refine_clean$company <- tolower(refine_clean$company)
+# using tolower to reduce number of combinations to make next step shorter
+
+```
+
+```{r clean_company_part2}
+# rename remaining combinations
+# Is there a better way to do this?
+refine_clean$company[refine_clean$company == "ak zo"] <- "akzo"
+refine_clean$company[refine_clean$company == "akzO"] <- "akzo"
+refine_clean$company[refine_clean$company == "akz0"] <- "akzo"
+refine_clean$company[refine_clean$company == "phillips"] <- "philips"
+refine_clean$company[refine_clean$company == "phllips"] <- "philips"
+refine_clean$company[refine_clean$company == "phillps"] <- "philips"
+refine_clean$company[refine_clean$company == "fillips"] <- "philips"
+refine_clean$company[refine_clean$company == "phlips"] <- "philips"
+refine_clean$company[refine_clean$company == "unilver"] <- "unilever"
+unique(refine_clean$company) # using unique() to check that I got all the combinations
+```
+
+
+(@) **Separate product code and number**  
+Separate the product code and product number into separate columns i.e. add two new columns called *product_code* and *product_number*, containing the product code and number respectively
+
+
+```{r sep_product_code}
+# use tidyr::separate
+refine_clean <- separate(refine_clean, Product.code...number, into = c("product_code", "product_number"), sep = "-")
+```
+
+(@) **Add product categories**  
+You learn that the product codes actually represent the following product categories:
+    + p = Smartphone
+    + v = TV
+    + x = Laptop
+    + q = Tablet
+In order to make the data more readable, add a column with the product category for each record.
+
+
+```{r defining_product_types}
+# first, make a data frame of the product types
+# then, dplyr::left_join(a, b, by = "x1"")
+# Note: I feel like this can be done more elegantly.
+product_code <- c("p", "v", "x", "q")
+product_type <- c("Smartphone", "TV", "Laptop", "Tablet")
+prod_type <- data.frame(product_code, product_type)
+
+refine_clean <- left_join(refine_clean, prod_type, by = "product_code")
+
+```
+
+(@) **Add full address for geocoding**  
+You'd like to view the customer information on a map. In order to do that, the addresses need to be in a form that can be easily geocoded. Create a new column *full_address* that concatenates the three address fields (*address, city, country*), separated by commas.
+```{r make_full_address}
+refine_clean <- mutate(refine_clean, full_address = paste(address, city, country, sep = ','))
+
+```
+
+
+(@) **Create dummy variables for company and product category**  
+Both the company name and product category are categorical variables i.e. they take only a fixed set of values. In order to use them in further analysis you need to create dummy variables. Create dummy binary variables for each of them with the prefix company_ and product_ i.e.
+Add four binary (1 or 0) columns for company: *company_philips*, *company_akzo*, *company_van_houten* and *company_unilever*
+
+```{r create_company_dummies}
+# using dplyr::mutate to create new variable and ifelse to selectively fill with 1 or 0
+refine_clean <- mutate(refine_clean, company_philips = ifelse(refine_clean$company == "philips", 1, 0),
+       company_akzo = ifelse(refine_clean$company == "akzo", 1, 0),
+       company_van_houten = ifelse(refine_clean$company == "van houten", 1, 0),
+       company_unilever = ifelse(refine_clean$company == "unilever", 1, 0))
+```
+
+
+Add four binary (1 or 0) columns for product category: *product_smartphone*, *product_tv*, *product_laptop* and *product_tablet*
+```{r create_product_dummies}
+# using dplyr::mutate to create new variable and ifelse to selectively fill with 1 or 0
+refine_clean <- mutate(refine_clean, product_smartphone = ifelse(refine_clean$product_type == "Smartphone", 1, 0),
+       product_tv = ifelse(refine_clean$product_type == "TV", 1, 0),
+       product_laptop = ifelse(refine_clean$product_type == "Laptop", 1, 0),
+       product_tablet = ifelse(refine_clean$product_type == "Tablet", 1, 0))
+
+```
+
+
+(@) **Submit the project on Github**  
+Include your code, the original data as a CSV file *refine_original.csv*, and the cleaned up data as a CSV file called *refine_clean.csv*.
+```{r export_file}
+write.csv(refine_clean, "refine_clean.csv")
+# commit and push to github using instructions from: http://www.r-bloggers.com/rstudio-and-github/
+
+```
+
